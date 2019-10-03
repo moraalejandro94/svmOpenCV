@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 2.8)
+project( svmExample )
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
+add_executable( svmExample svmExample.cpp )
+target_link_libraries( svmExample ${OpenCV_LIBS} )

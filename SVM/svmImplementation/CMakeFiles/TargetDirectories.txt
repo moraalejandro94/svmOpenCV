@@ -1,0 +1,3 @@
+/home/gdem/OpenCVSamples/svmExample/CMakeFiles/rebuild_cache.dir
+/home/gdem/OpenCVSamples/svmExample/CMakeFiles/edit_cache.dir
+/home/gdem/OpenCVSamples/svmExample/CMakeFiles/svmExample.dir

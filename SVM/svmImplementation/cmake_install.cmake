@@ -1,4 +1,4 @@
-# Install script for directory: /home/gdem/OpenCVSamples/svmExample
+# Install script for directory: /home/gdem/OpenCVSamples/SVM/svmImplementation
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -40,5 +40,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/gdem/OpenCVSamples/svmExample/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/gdem/OpenCVSamples/SVM/svmImplementation/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

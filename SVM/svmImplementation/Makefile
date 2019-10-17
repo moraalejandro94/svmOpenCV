@@ -48,10 +48,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/gdem/OpenCVSamples/svmExample
+CMAKE_SOURCE_DIR = /home/gdem/OpenCVSamples/SVM/svmImplementation
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/gdem/OpenCVSamples/svmExample
+CMAKE_BINARY_DIR = /home/gdem/OpenCVSamples/SVM/svmImplementation
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -80,9 +80,9 @@ edit_cache/fast: edit_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/gdem/OpenCVSamples/svmExample/CMakeFiles /home/gdem/OpenCVSamples/svmExample/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/gdem/OpenCVSamples/SVM/svmImplementation/CMakeFiles /home/gdem/OpenCVSamples/SVM/svmImplementation/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/gdem/OpenCVSamples/svmExample/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/gdem/OpenCVSamples/SVM/svmImplementation/CMakeFiles 0
 .PHONY : all
 
 # The main clean target

@@ -6,7 +6,7 @@
 
 #IncludeRegexTransform: 
 
-/home/gdem/OpenCVSamples/svmExample/svmExample.cpp
+/home/gdem/OpenCVSamples/SVM/svmImplementation/svmExample.cpp
 opencv2/core.hpp
 -
 opencv2/imgproc.hpp
@@ -22,6 +22,12 @@ iostream
 sys/stat.h
 -
 sys/time.h
+-
+sstream
+-
+string
+-
+fstream
 -
 
 /usr/local/include/opencv/cxcore.h

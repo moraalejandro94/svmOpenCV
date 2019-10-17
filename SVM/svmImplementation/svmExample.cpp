@@ -6,22 +6,28 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sstream>
+#include <string> 
+#include <fstream>
 
-using namespace cv;
+using namespace std;
+using namespace cv; 
 using namespace cv::ml;
 
 #define NUM_CLASSES		4
 #define	NUM_BINARY_CLASSIFIERS	((NUM_CLASSES * (NUM_CLASSES-1))/2)
 
 #define BANDS 		128
-#define	ROWS		459
-#define	COLUMNS		548
+#define	ROWS		472
+#define	COLUMNS		402
+String modelName = "Op25C2";                             
 
 #define PIXELS  (ROWS*COLUMNS)
 
 float image_in[PIXELS][BANDS];
 float w_vector[BANDS][NUM_BINARY_CLASSIFIERS];
 float distances[PIXELS][NUM_BINARY_CLASSIFIERS];
+float distancesOpCV[PIXELS][NUM_BINARY_CLASSIFIERS];
 float probA[NUM_BINARY_CLASSIFIERS]; 
 float probB[NUM_BINARY_CLASSIFIERS];
 float rho[NUM_BINARY_CLASSIFIERS];
@@ -45,17 +51,50 @@ double writing_time = 0;
 double total_time = 0;
 struct timeval tv1, tv2, tv1mult, tv2mult, tv1tot, tv2tot;
 Mat pixelMat =  Mat(PIXELS, BANDS, CV_32F);
-bool useMats = false;
+bool useMats = true;
 float pQp;
 float diff_pQp;
 float max_error, max_error_aux;
 float epsilon = 0.005/NUM_CLASSES;
-String modelName = "Op81C";                             //Nombre del modelo 
+
 String inputPath = "./inputFiles/" + modelName +"/";
 String outputPath = "./outputFiles/" + modelName +"/";
+const char *xmlHeader = "<?xml version=\"1.0\"?>\n \
+<opencv_storage>\n \
+ <opencv_ml_svm>\n \
+  <svmType>C_SVC</svmType>\n \
+  <kernel>\n \
+    <type>LINEAR</type></kernel>\n \
+  <C>1.</C>\n \
+  <term_criteria><iterations>100</iterations></term_criteria>\n \
+  <var_count>128</var_count>\n \
+  <class_count>2</class_count>\n \
+  <class_labels type_id=\"opencv-matrix\">\n \
+    <rows>2</rows>\n \
+    <cols>1</cols>\n \
+    <dt>i</dt>\n \
+    <data>\n \
+      -1 1</data></class_labels>\n \
+  <sv_total>1</sv_total>\n \
+  <support_vectors>\n \
+    <_>\n";
+
+const char *xmlPart2 = "</_></support_vectors> \n \
+  <uncompressed_sv_total>0</uncompressed_sv_total> \n \
+  <decision_functions> \n \
+    <_> \n \
+      <sv_count>1</sv_count> \n \
+      <rho> ";
+
+const char *xmlEnd = "</rho>  \n \
+      <alpha>  \n \
+        1.</alpha>  \n \
+      <index>  \n \
+        0</index></_></decision_functions></opencv_ml_svm>  \n \
+</opencv_storage>  \n";
  
 
-cv::Ptr<cv::ml::SVM> initDefaultSVM(int sampleCount,int sampleSize){
+cv::Ptr<cv::ml::SVM> initDefaultSVM(){
     cv::Ptr<cv::ml::SVM> svm;
     svm = cv::ml::SVM::create();
     svm->setType(cv::ml::SVM::C_SVC);    
@@ -75,7 +114,8 @@ float vectorProduct(int size, int classIndex, int pixelIndex){
 void setDistanceToVector(int pixelIndex, int svmIndex){      
     if(useMats){
         float distance = classifiers[svmIndex]->predict(pixels[pixelIndex], cv::noArray(),cv::ml::StatModel:: RAW_OUTPUT);
-        distances[pixelIndex][svmIndex] = distance;    
+        distances[pixelIndex][svmIndex] = distance;   
+        distancesOpCV [pixelIndex][svmIndex] = distance;   
     }  
     else {
         float distance = 0;
@@ -84,13 +124,10 @@ void setDistanceToVector(int pixelIndex, int svmIndex){
         }        
         distance -= rho[svmIndex];
         distances[pixelIndex][svmIndex] = distance;
-        int count = 0;
-            
-        
+        int count = 0;       
     }
     
 }
-
 
 void getSigmoidPrediction(int pixelIndex, int svmIndex){
     float sigmoidPrediction;    
@@ -131,14 +168,7 @@ void getClassProbability(int pixelIndex){
 			}
 			for(int j=b+1; j<NUM_CLASSES; j++){
 				multiProbabilityQ[b][b] += pairwiseProbability[j][b] * pairwiseProbability[j][b];
-				multiProbabilityQ[b][j] = -pairwiseProbability[j][b] * pairwiseProbability[b][j];
-                if (pixelIndex < 10){
-					printf("Pixel:  %d", pixelIndex );
-					printf("  b:  %d", b );
-					printf("  j:  %d", j );
-					printf("  MultiProb BB %f  ", multiProbabilityQ[b][b]);	
-					printf("  MultiProb BJ %f \n", multiProbabilityQ[b][pixelIndex]);	
-				}	
+				multiProbabilityQ[b][j] = -pairwiseProbability[j][b] * pairwiseProbability[b][j];                
 			}
 	}
 
@@ -210,6 +240,7 @@ void decision(int pixelIndex){
 }
 
 void svmMain(){
+    gettimeofday(&tv1,NULL);
     for(int i = 0; i < PIXELS; i++){
         for(int j = 0; j < NUM_BINARY_CLASSIFIERS ; j++){
             setDistanceToVector(i, j);
@@ -236,16 +267,18 @@ void readFiles(){
         printf("FAIL!! \n");
         exit(EXIT_FAILURE);
     }
+    float currBand; 
 	for(int j=0; j < PIXELS; j++){
+        Mat currMat = Mat(1, BANDS, CV_32F);        
         for(int k=0; k<BANDS; k++){            
-            // Create Pixel Mat     	
-            reader = fread(&image_in[j][k], sizeof(float), 1, fp);		
-            //reader = fread(&pixelMat.at<float>(Point(j,k)), sizeof(float), 1, fp);            
-            if (j==1){
-                //std::cout << "MAT: " << pixelMat.at<float>(Point(j,k)) << "\n";                
-            } 
+            // Create Pixel Mat     	            
+            reader = fread(&currBand, sizeof(float), 1, fp);		
+            //reader = fread(&currMat.at<float>(Point(0,k)), sizeof(float), 1, fp);                        
+            currMat.at<float>(0, k) = currBand;
 		}
+        pixels[j] = currMat;
 	}
+
 	fclose(fp);
     String probAPathStr = inputPath  + "ProbA.bin";
     const char *probAPath = probAPathStr.c_str();
@@ -260,13 +293,6 @@ void readFiles(){
 	for(int j=0; j < NUM_BINARY_CLASSIFIERS; j++){
 		reader = fread(&probB[j], sizeof(float), 1, fp);
 	}
-	fclose(fp);
-    String rhoPathStr = inputPath  + "rho.bin";
-    const char *rhoPath = rhoPathStr.c_str();
-    fp = fopen(rhoPath,"rb");
-	for(int j=0; j < NUM_BINARY_CLASSIFIERS; j++){
-		reader = fread(&rho[j], sizeof(float), 1, fp);
-	}
     fclose(fp);
     String labelPathStr = inputPath  + "label.bin";
     const char *labelPath = labelPathStr.c_str();
@@ -275,28 +301,17 @@ void readFiles(){
 		reader = fread(&label[j], sizeof(int), 1, fp);
 	}	
 	fclose(fp);
-    String w_vectorPathStr = inputPath  + "w_vector.bin";
-    const char *w_vectorPath = w_vectorPathStr.c_str();
-    fp = fopen(w_vectorPath,"rb");
-	for(int j=0; j < NUM_BINARY_CLASSIFIERS; j++){
-		for(int k=0; k < BANDS; k++){
-			reader = fread(&w_vector[k][j], sizeof(float), 1, fp);                    
-		}
-	}
-	fclose(fp);
-
-    // Load OpenCV SVM files into SVM array 
+    
 
 	gettimeofday(&tv2,NULL);
 	read_time = timeval_diff(&tv2, &tv1);
-    
 }
 
 void writeFiles(){
     FILE *fp;
     gettimeofday(&tv1,NULL);
 
-    String prob_estimatesPathStr = outputPath  + "prob_estimates.txt";
+    String prob_estimatesPathStr = outputPath  + "implementationProb.txt";
     const char *prob_estimatesPath = prob_estimatesPathStr.c_str();
 	fp = fopen(prob_estimatesPath,"w"); //Fichero de salida
 	if(fp==NULL){
@@ -310,7 +325,7 @@ void writeFiles(){
 	}
 	fclose(fp);
 
-    String labels_obtainedPathStr = outputPath  + "labels_obtained.txt";
+    String labels_obtainedPathStr = outputPath  + "implementationLabels.txt";
     const char *labels_obtainedPath = labels_obtainedPathStr.c_str();
 	fp = fopen(labels_obtainedPath,"w"); //Fichero de salida
 	if(fp==NULL){
@@ -320,8 +335,7 @@ void writeFiles(){
 			fprintf(fp,"%d\n",predicted_labels[i]);
 		}
 	}
-	fclose(fp);
-
+	fclose(fp);    
 	gettimeofday(&tv2,NULL);
 
 	writing_time = timeval_diff(&tv2, &tv1);
@@ -333,89 +347,86 @@ void writeFiles(){
 	printf("TOTAL TIME: %.4g ms\n", total_time*1000.0);
 }
 
+void writeTimes(){
+    FILE *fp;
+    String timesPathStr = outputPath  + "times.txt";
+    const char *timesPath = timesPathStr.c_str();
+	fp = fopen(timesPath,"w"); //Fichero de salida
+	if(fp==NULL){
+		printf("open output matrix_mult failed\n");
+	}else{		
+        fprintf(fp,"Reading: %.4g ms.... Processing: %.4g ms.... Writing: %.4g ms\n", read_time*1000.0, processing_time*1000.0,writing_time*1000.0);		
+        fprintf(fp,"TOTAL TIME: %.4g ms\n", total_time*1000.0);
+	}
+    fclose(fp);
 
-void svmExample(){
-    // Set up training data    
-    int sampleCount = 5;
-    int sampleSize = 2;
-    int labels[sampleCount] = {1, 1,-1, -1, -1};
-    float trainingData[sampleCount][sampleSize] = { {350, 200},{501, 10}, {255, 300}, {255, 255}, {300, 420} };
-    Mat trainingDataMat(4, 2, CV_32F, trainingData);
-    Mat labelsMat(4, 1, CV_32SC1, labels);
-    String fileName = "./inputFiles/OpenCV/svmTest.xml";
-    
-    //Config Values
-    bool trainSVM = true;
-    bool saveSVM = true;
+}
 
-    // Init SVM
-    cv::Ptr<cv::ml::SVM> svm;
-    if (trainSVM){
-    svm = initDefaultSVM(sampleCount, sampleSize);
-    svm->train(trainingDataMat, ROW_SAMPLE, labelsMat);
-        if (saveSVM){            
-            svm->save(fileName);        
-        }    
+void writeInputFiles(){
+    FILE *fp;    
+    String rhoPathStr = inputPath  + "rho.bin";
+    const char *rhoPath = rhoPathStr.c_str();
+    fp = fopen(rhoPath,"rb");
+	for(int j=0; j < NUM_BINARY_CLASSIFIERS; j++){
+		reader = fread(&rho[j], sizeof(float), 1, fp);
+	}
+
+    String w_vectorPathStr = inputPath  + "w_vector.bin";
+    const char *w_vectorPath = w_vectorPathStr.c_str();
+    fp = fopen(w_vectorPath,"rb");
+	for(int j=0; j < NUM_BINARY_CLASSIFIERS; j++){
+		for(int k=0; k < BANDS; k++){
+			reader = fread(&w_vector[k][j], sizeof(float), 1, fp);                    
+		}
+	}
+	fclose(fp);
+
+
+    for(int i = 0; i <NUM_BINARY_CLASSIFIERS; i++){        
+        std::stringstream ss;
+        ss << "./inputFiles/"<<modelName<<"/svmBands" << i << ".xml";        
+        std::string fileName = ss.str(); 
+        fp = fopen(fileName.c_str(),"w"); //Fichero de salida
+        if(fp==NULL){
+            printf("open output matrix_mult failed\n");
+        }else{            
+            fprintf(fp,"%s",xmlHeader);
+            for (int j = 0; j < BANDS; j++){
+                fprintf(fp,"%.9f\n",w_vector[j][i]);
+            }
+            fprintf(fp,"%s",xmlPart2);
+            fprintf(fp,"%.9f\n",rho[i]);
+            fprintf(fp,"%s",xmlEnd);                            
+        }
+        fclose(fp);    
     }
-    else{        
+}
+
+void buildSVM(){    
+    for (int i = 0; i < NUM_BINARY_CLASSIFIERS; i++){
+        std::stringstream ss;
+        ss << "./inputFiles/"<< modelName <<"/svmBands" << i << ".xml";        
+        std::string fileName = ss.str(); 
+        cv::Ptr<cv::ml::SVM> svm;
+        svm = initDefaultSVM();
         svm = Algorithm::load<SVM>(fileName);    //Load SVM from file
-    } 
-
-    
-    int width = 512, height = 512;
-    bool returnDFVal = true;
-    Mat image = Mat::zeros(height, width, CV_8UC3);
-    Vec3b green(0,255,0), blue(255,0,0);
-    for (int i = 0; i < image.rows; i++){
-        for (int j = 0; j < image.cols; j++){                        
-            Mat sampleMat = (Mat_<float>(1,2) << j,i);            
-            if(int v2 = rand() % 1000 + 1 > 992){
-                float response = svm->predict(sampleMat, cv::noArray(),cv::ml::StatModel:: RAW_OUTPUT);                
-                if (response > 0){
-                    image.at<Vec3b>(i,j)  = Vec3b(0,255-(response*14),-1);
-                }
-                else{
-                    image.at<Vec3b>(i,j)  = Vec3b(255+(response*14),1,0);
-                }                                                                
-            }        
-            else{
-                image.at<Vec3b>(i,j)  = Vec3b(0,0,0);
-            }    
-        }
+        classifiers[i] = svm;
     }
-    int thickness = -1;
-    for (int i = 0 ; i < sampleCount ; i++){        
-        if (labels[i] == 1){
-            circle( image, Point(trainingData[i][0],  trainingData[i][1]), 5, Scalar(  255,   180,   0), thickness);    
-        }
-        else{
-            circle( image, Point(trainingData[i][0],  trainingData[i][1]), 5, Scalar(  0,   180,   255), thickness );    
-        }                
-    }
-
-    thickness = 2;
-    Mat sv = svm->getUncompressedSupportVectors();
-
-    for (int i = 0; i < sv.rows; i++){
-        const float* v = sv.ptr<float>(i);
-        circle(image,  Point( (int) v[0], (int) v[1]), 6, Scalar(128, 128, 128), thickness);
-    }    
-
-    imwrite("./outputFiles/OpenCV/result.png", image);        //Save the image
-    imshow("SVM", image);               //Display the image 
-    waitKey();
 }
 
 int main(int, char**)
-{
+{    
     bool useAlgorithm = true;
     if (useAlgorithm){
+        gettimeofday(&tv1tot,NULL);
         readFiles();
-        svmMain();
-        writeFiles();
+        writeInputFiles();
+        buildSVM();
+        svmMain();        
+        writeFiles();   
+        writeTimes();     
     }
     else{
-        svmExample();
-    }
-    return 0;
+        //svmExample();        
+    }      
 }

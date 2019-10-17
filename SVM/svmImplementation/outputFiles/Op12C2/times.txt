@@ -1,0 +1,2 @@
+Reading: 786.1 ms.... Processing: 635.4 ms.... Writing: 280.4 ms
+TOTAL TIME: 1703 ms

@@ -5,6 +5,7 @@
 #include <math.h>
 #include <float.h>
 #include <sys/stat.h>
+
 #include <sys/time.h>
 
 //DEFINICIÓN DE LOS PARÁMETROS DE ENTRADA DE LA IMAGEN
@@ -13,15 +14,15 @@
 #define	NUM_BINARY_CLASSIFIERS	((NUM_CLASSES * (NUM_CLASSES-1))/2)
 
 #define BANDS 		128
-#define	ROWS		459
-#define	COLUMNS		548
+#define	ROWS		472
+#define	COLUMNS		402
 
 #define PIXELS  (ROWS*COLUMNS)
 int i, j, k, q, b, p, clasificador;
 
 float image_in[PIXELS][BANDS];
 int label[NUM_CLASSES];
-float probA[NUM_BINARY_CLASSIFIERS]; 
+float probA[NUM_BINARY_CLASSIFIERS];
 float probB[NUM_BINARY_CLASSIFIERS];
 float rho[NUM_BINARY_CLASSIFIERS];
 float w_vector[BANDS][NUM_BINARY_CLASSIFIERS];
@@ -51,7 +52,6 @@ double read_time = 0;
 double processing_time = 0;
 double writing_time = 0;
 double total_time = 0;
-
 int reader;
 
 double timeval_diff(struct timeval *tfin, struct timeval *tini){
@@ -118,7 +118,7 @@ int main()
 				for(j=0; j<BANDS; j++){
 					sum1 += image_in[q][j] * w_vector[j][clasificador];
 				}
-				dec_values[clasificador] = sum1 - rho[p];				
+				dec_values[clasificador] = sum1 - rho[p];
 				sigmoid_prediction_fApB = dec_values[clasificador]*probA[p] + probB[p];
 
 				if (sigmoid_prediction_fApB >= 0.0){
@@ -132,39 +132,32 @@ int main()
 				}		
 				if(sigmoid_prediction > max_prob){
 					sigmoid_prediction = max_prob;
-				}							
+				}					
 				pairwise_prob[b][k] = sigmoid_prediction;
-				pairwise_prob[k][b] = 1-sigmoid_prediction;					
+				pairwise_prob[k][b] = 1-sigmoid_prediction;
+					
 				p++;
 				clasificador++;
 			}
 		}
-		///////////////////////// Multi Prob //////////////////////////////////////
 		p = 0;
 		for(b=0; b<NUM_CLASSES; b++){ //para todos los clasificadores binarios
 			prob_estimates[b] = 1.0/NUM_CLASSES;
 			multi_prob_Q[b][b] = 0.0;
 			for(j=0; j<b; j++){
 				multi_prob_Q[b][b] += pairwise_prob[j][b] * pairwise_prob[j][b];
-				multi_prob_Q[b][j] = multi_prob_Q[j][b];					
+				multi_prob_Q[b][j] = multi_prob_Q[j][b];
 			}
 			for(j=b+1; j<NUM_CLASSES; j++){
 				multi_prob_Q[b][b] += pairwise_prob[j][b] * pairwise_prob[j][b];
 				multi_prob_Q[b][j] = -pairwise_prob[j][b] * pairwise_prob[b][j];
-				if (q < 10){
-					printf("Pixel:  %d", q );
-					printf("  b:  %d", b );
-					printf("  j:  %d", j );
-					printf("  MultiProb BB %f  ", multi_prob_Q[b][b]);	
-					printf("  MultiProb BJ %f \n", multi_prob_Q[b][q]);	
-				}	
-			}								
+			}
 		}
 
 		iters = 0;
 		stop = 0;
 
-		while (stop == 0){ // OR iters == 100) and remove lines 197-199
+		while (stop == 0){
 				
 			pQp = 0.0;
 			for(b=0; b<NUM_CLASSES; b++){
@@ -176,7 +169,7 @@ int main()
 			}
 			max_error = 0.0;
 			for(b=0; b<NUM_CLASSES; b++){
-				max_error_aux = multi_prob_Qp[b] - pQp; // Same as ^2 then sqrt(?)
+				max_error_aux = multi_prob_Qp[b] - pQp;
 				if (max_error_aux < 0.0){
 					max_error_aux = -max_error_aux;
 				}
@@ -215,9 +208,6 @@ int main()
 			if(prob_estimates[b] > prob_estimates[decision]){
 				decision = b;
 			}
-			if (q % 10000 == 0){                
-				
-            }
 		}
 		
 		predicted_labels[q] = label[decision];
